@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../core/widgets/app_logo.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
-import '../home/home_screen.dart';
+import '../../repositories/auth_repository.dart';
 
-/// Екран реєстрації (Create account)
+/// Екран реєстрації (Create account) з валідацією форми через Form
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -14,12 +15,14 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final TextEditingController _nameController =
-      TextEditingController(text: 'Alex Morgan');
-  final TextEditingController _emailController =
-      TextEditingController(text: 'alex.morgan@email.com');
-  final TextEditingController _passwordController =
-      TextEditingController(text: 'mypassword123');
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final AuthRepository _authRepo = AuthRepository();
+  
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -29,12 +32,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _onCreateAccount() {
-    // перехід на домашній екран
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+  void _onCreateAccount() async {
+    // Перевірка валідації всіх полів форми
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _autovalidateMode = AutovalidateMode.onUserInteraction;
+      });
+      return;
+    }
+
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _authRepo.signUp(
+        email: email,
+        password: password,
+        displayName: name,
+      );
+
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -74,54 +110,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 38),
 
-              // 3. Поле "ACCOUNT NAME" з іконкою користувача з олівцем
-              CustomTextField(
-                label: 'ACCOUNT NAME',
-                controller: _nameController,
-                prefixWidget: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Stack(
-                    children: const [
-                      Positioned(
-                        left: 0,
-                        top: 1,
-                        child: Icon(
-                          Icons.person_outline_rounded,
-                          color: AppColors.textSecondary,
-                          size: 20,
+              // Форма з валідацією полів
+              Form(
+                key: _formKey,
+                autovalidateMode: _autovalidateMode,
+                child: Column(
+                  children: [
+                    // Поле "ACCOUNT NAME"
+                    CustomTextField(
+                      label: 'ACCOUNT NAME',
+                      hintText: 'Alex Morgan',
+                      controller: _nameController,
+                      validator: Validators.validateName,
+                      prefixWidget: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: Stack(
+                          children: const [
+                            Positioned(
+                              left: 0,
+                              top: 1,
+                              child: Icon(
+                                Icons.person_outline_rounded,
+                                color: AppColors.textSecondary,
+                                size: 20,
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Icon(
+                                Icons.edit,
+                                color: AppColors.textSecondary,
+                                size: 10,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Icon(
-                          Icons.edit,
-                          color: AppColors.textSecondary,
-                          size: 10,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Поле "EMAIL"
+                    CustomTextField(
+                      label: 'EMAIL',
+                      hintText: 'alex.morgan@email.com',
+                      controller: _emailController,
+                      prefixIcon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: Validators.validateEmail,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Поле "PASSWORD"
+                    CustomTextField(
+                      label: 'PASSWORD',
+                      controller: _passwordController,
+                      prefixIcon: Icons.lock_outline_rounded,
+                      isPassword: true,
+                      validator: Validators.validatePassword,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 14),
-
-              // Поле "EMAIL"
-              CustomTextField(
-                label: 'EMAIL',
-                controller: _emailController,
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 14),
-
-              // Поле "PASSWORD"
-              CustomTextField(
-                label: 'PASSWORD',
-                controller: _passwordController,
-                prefixIcon: Icons.lock_outline_rounded,
-                isPassword: true,
               ),
               const SizedBox(height: 24),
 
@@ -129,11 +179,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               PrimaryButton(
                 text: 'Create account',
                 icon: Icons.arrow_forward_rounded,
-                onPressed: _onCreateAccount,
+                isLoading: _isLoading,
+                onPressed: _isLoading ? null : _onCreateAccount,
               ),
               const SizedBox(height: 28),
 
-              // Навігація назад до авторизації (для зручності під час тестування)
+              // Навігація назад до авторизації
               GestureDetector(
                 onTap: () {
                   if (Navigator.canPop(context)) {

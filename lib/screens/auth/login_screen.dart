@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../core/widgets/app_logo.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/social_button.dart';
 import 'register_screen.dart';
 import 'reset_password_screen.dart';
-import '../home/home_screen.dart';
+import '../../repositories/auth_repository.dart';
 
-/// Екран авторизації (Sign In)
+final AuthRepository _authRepo = AuthRepository();
+
+/// Екран авторизації (Sign In) з валідацією форми через Form
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,11 +20,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController =
-      TextEditingController(text: 'alex.morgan@email.com');
-  final TextEditingController _passwordController =
-      TextEditingController(text: 'mypassword123');
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
   bool _rememberMe = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,12 +35,41 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _onSignIn() {
-    // перехід на домашній екран
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+  void _onSignIn() async {
+    // Перевірка валідації полів форми входу
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _autovalidateMode = AutovalidateMode.onUserInteraction;
+      });
+      return;
+    }
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Авторизація через AuthRepository
+      await _authRepo.signIn(email: email, password: password);
+
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -75,19 +109,33 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 38),
 
-              // Поля вводу
-              CustomTextField(
-                label: 'Email',
-                controller: _emailController,
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 14),
-              CustomTextField(
-                label: 'Password',
-                controller: _passwordController,
-                prefixIcon: Icons.lock_outline_rounded,
-                isPassword: true,
+              // Форма входу з валідацією
+              Form(
+                key: _formKey,
+                autovalidateMode: _autovalidateMode,
+                child: Column(
+                  children: [
+                    // Поле "Email"
+                    CustomTextField(
+                      label: 'Email',
+                      hintText: 'alex.morgan@email.com',
+                      controller: _emailController,
+                      prefixIcon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: Validators.validateEmail,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Поле "Password"
+                    CustomTextField(
+                      label: 'Password',
+                      controller: _passwordController,
+                      prefixIcon: Icons.lock_outline_rounded,
+                      isPassword: true,
+                      validator: Validators.validateLoginPassword,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
 
@@ -147,11 +195,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 22),
 
-              // Кнопка Sign In
+              // Кнопка Sign In з індикатором завантаження
               PrimaryButton(
                 text: 'Sign In',
                 icon: Icons.arrow_forward_rounded,
-                onPressed: _onSignIn,
+                isLoading: _isLoading,
+                onPressed: _isLoading ? null : _onSignIn,
               ),
               const SizedBox(height: 18),
 
@@ -186,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 38),
 
-              // 7. Розділювач "or continue with"
+              // Розділювач "or continue with"
               const Row(
                 children: [
                   Expanded(
@@ -210,10 +259,33 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 28),
 
-              //Кнопка Sign in with Google
+              // Кнопка Sign in with Google
               SocialButton(
                 text: 'Sign in with Google',
-                onPressed: _onSignIn,
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        setState(() => _isLoading = true);
+                        try {
+                          final userCredential = await _authRepo.signInWithGoogle();
+                          if (userCredential != null && mounted) {
+                            Navigator.pushReplacementNamed(context, '/home');
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: Colors.redAccent,
+                                content: Text('Google sign-in error: ${e.toString().replaceAll('Exception: ', '')}'),
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() => _isLoading = false);
+                          }
+                        }
+                      },
               ),
               const SizedBox(height: 24),
             ],

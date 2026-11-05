@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1066973787711",
+    "project_id": "bike-diary-3c31b",
+    "storage_bucket": "bike-diary-3c31b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1066973787711:android:49e9863b534a9cb1716a8a",
+        "android_client_info": {
+          "package_name": "com.example.lab_3"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1066973787711-98jdflq7atn1moe3iqc40t3gtecohoml.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lab_3",
+            "certificate_hash": "cdf42f82144a9e37da45f1c8994c3c0ac9fd02c2"
+          }
+        },
+        {
+          "client_id": "1066973787711-2aobei24kblhhv5vm1lqhd15hc2ci8kl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcES7o6PtmA70rHR1eGSlD9cLJHhgJgSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1066973787711-2aobei24kblhhv5vm1lqhd15hc2ci8kl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../repositories/auth_repository.dart';
 import 'login_screen.dart';
 
-/// Екран відновлення пароля (Reset Password) у точній відповідності до дизайну
+/// Екран відновлення пароля (Reset Password)
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
@@ -13,9 +15,13 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final TextEditingController _emailController =
-      TextEditingController(text: 'alex.morgan@email.com');
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final AuthRepository _authRepo = AuthRepository();
+  
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
   bool _isSuccessVisible = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -23,10 +29,44 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  void _onSendResetLink() {
+  void _onSendResetLink() async {
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _autovalidateMode = AutovalidateMode.onUserInteraction;
+      });
+      return;
+    }
+
+    final email = _emailController.text.trim();
+
     setState(() {
-      _isSuccessVisible = true;
+      _isLoading = true;
     });
+
+    try {
+      await _authRepo.sendPasswordResetEmail(email: email);
+
+      if (mounted) {
+        setState(() {
+          _isSuccessVisible = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -124,23 +164,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
               const SizedBox(height: 38),
 
-              // 5. Поле вводу Email
-              CustomTextField(
-                label: 'Email address',
-                controller: _emailController,
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
+              // 5. Поле вводу Email з валідацією
+              Form(
+                key: _formKey,
+                autovalidateMode: _autovalidateMode,
+                child: CustomTextField(
+                  label: 'Email address',
+                  hintText: 'alex.morgan@email.com',
+                  controller: _emailController,
+                  prefixIcon: Icons.mail_outline_rounded,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: Validators.validateEmail,
+                ),
               ),
               const SizedBox(height: 20),
 
               // 6. Кнопка "Send Reset Link"
               PrimaryButton(
                 text: 'Send Reset Link',
-                onPressed: _onSendResetLink,
+                icon: Icons.send_rounded,
+                isLoading: _isLoading,
+                onPressed: _isLoading ? null : _onSendResetLink,
               ),
               const SizedBox(height: 20),
 
-              // 7. Повідомлення про успішне відправлення (з'являється після натискання Send Reset Link)
+              // 7. Повідомлення про успішне відправлення
               if (_isSuccessVisible)
                 Container(
                   width: double.infinity,

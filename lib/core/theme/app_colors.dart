@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Палітра кольорів застосунку Bike Diary (Material 3 Dark)
+/// Палітра кольорів
 class AppColors {
   // Основні фонові кольори
   static const Color background = Color(0xFF0F1410);
